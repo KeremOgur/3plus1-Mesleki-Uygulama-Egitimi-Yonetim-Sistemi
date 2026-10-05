@@ -1,0 +1,11 @@
+<?php
+return [
+ 'required'=>':attribute alanı zorunludur.','string'=>':attribute metin olmalıdır.','integer'=>':attribute tam sayı olmalıdır.','numeric'=>':attribute sayı olmalıdır.','array'=>':attribute liste olmalıdır.','uuid'=>':attribute geçerli kayıt kimliği olmalıdır.','email'=>':attribute geçerli e-posta adresi olmalıdır.','boolean'=>':attribute evet/hayır değeri olmalıdır.','date'=>':attribute geçerli tarih olmalıdır.','date_format'=>':attribute biçimi :format olmalıdır.','in'=>':attribute için izin verilen değerlerden birini seçin.','accepted'=>':attribute kabul edilmelidir.','after'=>':attribute :date tarihinden sonra olmalıdır.','after_or_equal'=>':attribute :date tarihinde veya sonrasında olmalıdır.','before_or_equal'=>':attribute :date tarihinde veya öncesinde olmalıdır.','distinct'=>':attribute tekrarlanamaz.','unique'=>':attribute daha önce kullanılmıştır.','regex'=>':attribute biçimi geçersiz.','file'=>':attribute dosya olmalıdır.','mimes'=>':attribute dosya türü :values olmalıdır.','confirmed'=>':attribute doğrulaması uyuşmuyor.',
+ 'min'=>['numeric'=>':attribute en az :min olmalıdır.','string'=>':attribute en az :min karakter olmalıdır.','array'=>':attribute en az :min kayıt içermelidir.'],
+ 'max'=>['numeric'=>':attribute en fazla :max olmalıdır.','string'=>':attribute en fazla :max karakter olmalıdır.','array'=>':attribute en fazla :max kayıt içermelidir.','file'=>':attribute en fazla :max KB olmalıdır.'],
+ 'size'=>['string'=>':attribute :size karakter olmalıdır.','array'=>':attribute :size kayıt içermelidir.'],
+ 'between'=>['numeric'=>':attribute :min–:max aralığında olmalıdır.','array'=>':attribute :min–:max kayıt içermelidir.'],
+ 'lte'=>['numeric'=>':attribute :value değerini aşamaz.'],
+ 'password'=>['mixed'=>'Parola büyük ve küçük harf içermelidir.','numbers'=>'Parola sayı içermelidir.','symbols'=>'Parola simge içermelidir.'],
+ 'attributes'=>array_merge(config('portal.fields',[]),['email'=>'E-posta','password'=>'Parola','version'=>'Sürüm','state'=>'Durum','reason'=>'Gerekçe','student_id'=>'Öğrenci','program_id'=>'Program','institution_id'=>'MYO','term_id'=>'Dönem','company_id'=>'İşletme','file'=>'Dosya','decision_no'=>'Karar numarası','decision_on'=>'Karar tarihi','document_id'=>'Belge','capacity'=>'Kontenjan','password_confirmation'=>'Parola tekrarı']),
+];

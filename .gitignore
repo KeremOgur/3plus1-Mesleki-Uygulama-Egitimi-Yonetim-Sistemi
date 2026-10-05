@@ -1,0 +1,44 @@
+/tools/composer.phar
+/tools/php.ini
+/tools/pgdata/
+/tools/postgres.log
+/tools/*.log
+/tools/*.pid
+/optimizer/.venv/
+/optimizer/__pycache__/
+/backend/.env
+/backend/.env.backup
+/backend/.env.production
+/backend/vendor/
+/backend/node_modules/
+/backend/storage/*.key
+/backend/storage/app/private/*
+/backend/storage/app/backups/
+/backend/storage/app/backup-tests/
+/backend/storage/framework/cache/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/storage/logs/*
+/backend/bootstrap/cache/*.php
+/backend/.phpunit.result.cache
+/docs/sources/*.pdf
+/docs/sources/*.docx
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+!/backend/.env.example
+
+# Local databases
+/backend/database/*.sqlite
+/backend/database/*.sqlite-*
+
+# Private signing / credential material
+*.pem
+*.pfx
+*.p12
+*.key
+
+# Authoritative project source document extracts
+/docs/sources/

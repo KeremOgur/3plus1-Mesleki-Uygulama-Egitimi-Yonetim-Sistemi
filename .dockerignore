@@ -1,0 +1,12 @@
+tools
+docs/sources
+backend/vendor
+backend/node_modules
+backend/.env
+backend/storage/logs
+backend/storage/app/private
+backend/storage/app/backups
+backend/storage/app/backup-tests
+optimizer/.venv
+optimizer/__pycache__
+.git

@@ -1,0 +1,52 @@
+name: Kaynak uyumu ve portal regresyonu
+on: [push, pull_request]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: mue_test
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: mue_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mue_test -d mue_test"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: mue_test
+      DB_USERNAME: mue_test
+      DB_PASSWORD: local_ci_only
+      MATCHING_PYTHON: python
+      MATCHING_RUNNER: ${{ github.workspace }}/optimizer/runner.py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_pgsql, mbstring, zip, gd, dom, fileinfo
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - working-directory: backend
+        run: npm ci && npm run build
+      - run: pip install -r optimizer/requirements.lock.txt
+      - working-directory: backend
+        run: |
+          composer install --no-interaction --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
+          composer check-platform-reqs
+          vendor/bin/phpunit
+      - run: python -m unittest discover -s optimizer -p 'test*.py'

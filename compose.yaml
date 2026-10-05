@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: mue
+      POSTGRES_USER: mue
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD gerekli}
+      TZ: UTC
+    volumes: ["database:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mue -d mue"]
+      interval: 5s
+      retries: 20
+  app:
+    build: .
+    env_file: backend/.env
+    environment: &runtime
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: mue
+      DB_DATABASE: mue
+      MATCHING_PYTHON: /app/optimizer/.venv/bin/python
+      MATCHING_RUNNER: /app/optimizer/runner.py
+      BACKUP_DIRECTORY: /app/backend/storage/app/backups
+    ports: ["127.0.0.1:8088:8080"]
+    volumes: ["private_documents:/app/backend/storage/app/private", "backups:/app/backend/storage/app/backups"]
+    depends_on:
+      db: {condition: service_healthy}
+  queue:
+    build: .
+    env_file: backend/.env
+    environment: *runtime
+    command: ["php", "artisan", "queue:work", "--timeout=150", "--tries=3"]
+    volumes: ["private_documents:/app/backend/storage/app/private", "backups:/app/backend/storage/app/backups"]
+    depends_on: [app]
+  scheduler:
+    build: .
+    env_file: backend/.env
+    environment: *runtime
+    command: ["php", "artisan", "schedule:work"]
+    volumes: ["private_documents:/app/backend/storage/app/private", "backups:/app/backend/storage/app/backups"]
+    depends_on: [app]
+volumes:
+  database:
+  private_documents:
+  backups:
