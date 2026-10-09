@@ -337,7 +337,7 @@
             },
             "iban": {
                 "type": "string",
-                "rules": "nullable|string|regex:\/^TR[0-9]{24}$\/",
+                "rules": "nullable|string|regex:\/^TR[0-9]{24}$\/|iban_tr",
                 "ref": null
             },
             "address": {
@@ -507,7 +507,7 @@
             },
             "iban": {
                 "type": "text",
-                "rules": "nullable|string|regex:\/^TR[0-9]{24}$\/",
+                "rules": "nullable|string|regex:\/^TR[0-9]{24}$\/|iban_tr",
                 "ref": null
             },
             "graduated_on": {
@@ -3849,7 +3849,7 @@
             },
             "student_iban": {
                 "type": "text",
-                "rules": "required|string|regex:\/^TR[0-9]{24}$\/",
+                "rules": "required|string|regex:\/^TR[0-9]{24}$\/|iban_tr",
                 "ref": null
             },
             "bank_account_student_owned": {

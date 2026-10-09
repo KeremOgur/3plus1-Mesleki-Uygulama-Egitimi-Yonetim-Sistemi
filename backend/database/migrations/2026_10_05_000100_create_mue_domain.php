@@ -76,7 +76,7 @@ return new class extends Migration
             });
             if ($name !== 'institutions') DB::statement("ALTER TABLE $name ALTER COLUMN institution_id SET NOT NULL");
             foreach ($spec['fields'] as $field=>$def) {
-                if (str_starts_with($def['rules'], 'required')) DB::statement("ALTER TABLE $name ALTER COLUMN $field SET NOT NULL");
+                if (str_starts_with($def['rules'], 'required') || str_starts_with($def['rules'], 'present')) DB::statement("ALTER TABLE $name ALTER COLUMN $field SET NOT NULL");
                 if (in_array($def['type'], ['integer','decimal'])) DB::statement("ALTER TABLE $name ADD CHECK ($field >= 0)");
             }
             if ($spec['states']) {

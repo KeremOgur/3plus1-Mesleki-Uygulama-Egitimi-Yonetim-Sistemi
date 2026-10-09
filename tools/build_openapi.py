@@ -6,7 +6,7 @@ resources=json.loads((root/'docs/resource-manifest.json').read_text(encoding='ut
 routes=json.loads((root/'docs/routes.json').read_text(encoding='utf-8-sig'))
 uuid={'type':'string','format':'uuid'}
 contexts=['institution_id','program_id','term_id','company_id','student_id','placement_id']
-internal={'preferences','matching_runs','candidate_scores','match_results','decisions','publications','publication_items','success_results','documents','import_batches','notifications','outbox_events','appeals'}
+internal={'preferences','matching_runs','candidate_scores','match_results','decisions','publications','publication_items','success_results','documents','import_batches','notifications','outbox_events'}
 schemas={}
 def field(d):
     t=d['type']; r=d['rules']; s={'type':{'text':'string','string':'string','integer':'integer','bigint':'integer','decimal':'number','boolean':'boolean','uuid':'string','date':'string','timestamp':'string','jsonb':'array'}[t], 'description':'Sunucu doğrulaması: '+r,'x-laravel-rules':r}
@@ -23,6 +23,7 @@ for name,spec in resources.items():
     required+=spec['required_context']
     required=[k for k in dict.fromkeys(required) if k in props]
     schemas[name+'Input']={'type':'object','properties':props,'required':required,'x-writer-roles':spec['write'],'x-required-context':spec['required_context']}
+    schemas[name+'Update']={'type':'object','properties':dict(props,version={'type':'integer','minimum':1},reason={'type':'string'}),'required':['version'],'description':'Kısmi güncelleme; belirtilmeyen alanlar mevcut kayıttan korunur. İş kuralları gerektiriyorsa reason gönderilir.'}
     schemas[name]={'type':'object','properties':dict(props,id=uuid,state={'type':'string'},version={'type':'integer'},created_at={'type':'string','format':'date-time'},updated_at={'type':'string','format':'date-time'},retained_until={'type':'string','format':'date-time','nullable':True},legal_hold={'type':'boolean'}),'x-reader-roles':spec['read'],'x-state-transitions':spec['states'],'x-ek':spec['ek'],'description':'Yanıtta göreve göre gizli alanlar çıkarılır.'}
 schemas['Error']={'type':'object','properties':{'code':{'type':'string'},'message':{'type':'string','description':'Türkçe hata metni'},'field_errors':{'type':'object','additionalProperties':True},'request_id':{'type':'string'}}}
 schemas['Decision']={'type':'object','required':['decision_no','decision_on','document_id','reason','meeting_date','members_count','attendees_count','votes_for','votes_against','chair_vote_for','outcome'],'properties':{'decision_no':{'type':'string'},'decision_on':{'type':'string','format':'date'},'document_id':uuid,'reason':{'type':'string'},'meeting_date':{'type':'string','format':'date'},'members_count':{'type':'integer','minimum':1},'attendees_count':{'type':'integer','minimum':1},'votes_for':{'type':'integer','minimum':0},'votes_against':{'type':'integer','minimum':0},'chair_vote_for':{'type':'boolean'},'outcome':{'type':'string','enum':['onay','ret','iade','askiya_alma','fesih']}}}
@@ -62,14 +63,20 @@ requests={
 }
 paths={}
 def operation(path,method,tag,req=None,result=None,public=False,multipart=False,summary=None):
-    parameters=[{'name':k,'in':'path','required':True,'schema':({'type':'integer'} if path.startswith('/accounts/') else uuid) if k=='id' else text} for k in re.findall(r'\{([^}]+)\}',path)]
+    parameters=[{'name':k,'in':'path','required':True,'schema':({'type':'integer','format':'int64','minimum':1} if path.startswith('/accounts/') else uuid) if k=='id' else text} for k in re.findall(r'\{([^}]+)\}',path)]
     if not public and path not in ['/auth/me','/auth/logout','/schema','/forms']: parameters.append(assignment)
     if method in ['post','put','patch'] and not path.startswith('/auth/'): parameters.append(idempotency)
     op={'tags':[tag],'summary':summary or path,'operationId':method+'_'+re.sub('[^a-zA-Z0-9]+','_',path).strip('_'),'parameters':parameters,'responses':{'200':response(result),'401':response(ref('Error'),'Kimlik doğrulama gerekli'),'403':response(ref('Error'),'Görev/kapsam yetkisi yok'),'404':response(ref('Error'),'Kayıt bulunamadı'),'409':response(ref('Error'),'Durum, sürüm, kontenjan veya tekrar uyuşmazlığı'),'422':response(ref('Error'),'Alan/iş kuralı doğrulaması'),'503':response(ref('Error'),'Kurumsal entegrasyon yapılandırılmamış')},'security':[] if public else [{'bearerAuth':[]}]}
     if method=='post' and (path.startswith('/resources/') or path in ['/documents','/accounts']): op['responses']['201']=response(result,'Kayıt oluşturuldu')
     if path=='/matching-runs':op['responses']['202']=response(obj({'run_id':uuid,'state':text}),'Eşleştirme kuyruğa alındı')
     if req: op['requestBody']=body(req,'multipart/form-data' if multipart else 'application/json')
+    if path.startswith('/auth/'):op['responses']['429']=response(ref('Error'),'Giriş/kimlik işlemi istek sınırı aşıldı')
     if method=='get' and path.startswith('/resources/') and '{id}' not in path: op['parameters']+=[{'name':k,'in':'query','schema':uuid} for k in contexts]+[{'name':'limit','in':'query','schema':{'type':'integer','minimum':1,'maximum':100,'default':25}},{'name':'cursor','in':'query','schema':uuid}]
+    if method=='get' and path.startswith('/resources/') and '{id}' not in path:
+        resource=path.split('/')[-1]
+        references=[k for k,d in resources[resource]['fields'].items() if d['ref'] and k not in contexts]
+        op['parameters'] += [{'name':k,'in':'query','schema':({'type':'integer','minimum':1} if resources[resource]['fields'][k]['ref']=='users' else uuid)} for k in references]
+        op['parameters'] += [{'name':k,'in':'query','schema':text} for k in ['q','state','form_code']]
     paths.setdefault(path,{})[method]=op
 for name,spec in resources.items():
     path='/resources/'+name
@@ -77,8 +84,8 @@ for name,spec in resources.items():
     operation(path+'/{id}','get',name,result=ref(name))
     operation(path+'/{id}/history','get',name,result={'type':'array','items':{'type':'object'}})
     if name not in internal:
-        operation(path,'post',name,ref(name+'Input'),ref(name))
-        operation(path+'/{id}','put',name,{'allOf':[ref(name+'Input'),obj({'version':version})]},ref(name))
+        if name!='appeals': operation(path,'post',name,ref(name+'Input'),ref(name))
+        operation(path+'/{id}','put',name,ref(name+'Update'),ref(name))
     if spec['states']:
         operation(path+'/{id}/transition','post',name,obj({'version':version,'state':{'type':'string','enum':sorted({v for states in spec['states'].values() for v in states})}},['version','state']),ref(name))
         paths[path+'/{id}/transition']['post']['description']='Karar gerektiren geçişlerde Decision alanları da gönderilir. Uygun görevi sunucu belirler; create yetkisi karar yetkisi değildir. Belgeler temiz taranmış olmalıdır.'
@@ -96,8 +103,11 @@ for route in routes:
             fields.update({'institution_id':uuid} if path=='/imports/preview' else {'target_type':dict(text,enum=list(resources)),'target_id':uuid,'classification':dict(text,enum=['kurum_ici','gizli','saglik','disiplin']),'retention_start_event':text})
             request=obj(fields)
         operation(path,method,path.split('/')[1],request,public=path in ['/auth/login','/auth/forgot-password','/auth/reset-password'],multipart=multipart)
-        if path=='/exports/{resource}':paths[path][method]['parameters'].append({'name':'format','in':'query','required':True,'schema':{'type':'string','enum':['csv','xlsx','pdf']}})
-        if path=='/reports/outcomes':paths[path][method]['parameters'].append({'name':'term_id','in':'query','required':True,'schema':uuid})
+        if path=='/exports/{resource}':
+            paths[path][method]['parameters'].append({'name':'format','in':'query','required':True,'schema':{'type':'string','enum':['csv','xlsx','pdf']}})
+            paths[path][method]['responses']['200']={'description':'format parametresine uygun yetkili rapor dosyası','content':{'text/csv':{'schema':{'type':'string'}},'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':{'schema':{'type':'string','format':'binary'}},'application/pdf':{'schema':{'type':'string','format':'binary'}}}}
+        if path=='/reports/{report}':
+            paths[path][method]['parameters'] += [{'name':'term_id','in':'query','schema':uuid,'description':'outcomes raporu için zorunlu.'},{'name':'company_id','in':'query','schema':uuid,'description':'company-history raporu için zorunlu.'}]
         if path=='/documents/{id}/download':paths[path][method]['responses']['200']={'description':'Yetkili, temiz taranmış özel dosya','content':{'application/octet-stream':{'schema':{'type':'string','format':'binary'}}}}
 spec={'openapi':'3.0.3','info':{'title':'3+1 MUE Yönetim Backend API','version':'1.0.0','description':'Laravel yetkili sürümlü kayıt ve süreç API sözleşmesi. Koşullu iş kuralları API.md, KAPSAM.md ve resource-manifest.json ile birlikte okunur. Kurumsal karar ve entegrasyonlar otomatik varsayılmaz.'},'servers':[{'url':'http://127.0.0.1:8088/api/v1','description':'Yerel geliştirme'}],'paths':paths,'components':{'securitySchemes':{'bearerAuth':{'type':'http','scheme':'bearer','bearerFormat':'Sanctum'}},'schemas':schemas}}
 (root/'docs/openapi.json').write_text(json.dumps(spec,ensure_ascii=False,indent=2),encoding='utf-8')

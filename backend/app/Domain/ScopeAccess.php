@@ -9,6 +9,7 @@ class ScopeAccess
     {
         $id=request()->header('X-Assignment-Id');
         if (!$id) throw new DomainError('GOREV_GEREKLI','İşlem için aktif görevinizi seçin.',403);
+        if(!\Illuminate\Support\Str::isUuid($id))throw new DomainError('FORBIDDEN_SCOPE','Geçerli görevlendirme bulunamadı.',403);
         $cached=request()->attributes->get('mue.assignment_cache');
         if($u->active && $u->allowedEnvironment() && $cached && $cached->id===$id && $cached->user_id===$u->id)return $cached;
         $a=Records::query('role_assignments')->where('id',$id)->where('user_id',$u->id)->where('state','aktif')

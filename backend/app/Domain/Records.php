@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 class Records
 {
     public static function query(string $type) { return DomainRecord::for($type)->newQuery(); }
-    public static function get(string $type, string $id): DomainRecord { return self::query($type)->findOrFail($id); }
+    public static function get(string $type, string $id): DomainRecord { abort_unless(\Illuminate\Support\Str::isUuid($id),404,'Kayıt bulunamadı.'); return self::query($type)->findOrFail($id); }
     public static function create(string $type, array $data): DomainRecord
     {
         $data['created_by'] ??= auth()->id();

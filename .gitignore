@@ -6,6 +6,8 @@
 /tools/*.pid
 /optimizer/.venv/
 /optimizer/__pycache__/
+/tools/__pycache__/
+/tools/qa/__pycache__/
 /backend/.env
 /backend/.env.backup
 /backend/.env.production

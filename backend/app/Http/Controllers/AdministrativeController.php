@@ -7,7 +7,7 @@ class AdministrativeController extends ResourceController
 {
     public function confirmProfile(Request $req,string $id)
     {
-        $req->validate(['version'=>'required|integer','phone'=>'nullable|string|max:30','address'=>'nullable|string|max:20000','iban'=>'nullable|string|regex:/^TR[0-9]{24}$/']);
+        $req->validate(['version'=>'required|integer','phone'=>'nullable|string|max:30','address'=>'nullable|string|max:20000','iban'=>'nullable|string|regex:/^TR[0-9]{24}$/|iban_tr']);
         return $this->transaction($req,function()use($req,$id){$s=Records::query('students')->lockForUpdate()->findOrFail($id);Gate::authorize('record-view',$s);app(ScopeAccess::class)->assertAction('ogrenci',$s);$this->version($req,$s);$s->fill($req->only('phone','address','iban'));$s->profile_confirmed_at=now();$s->save();return $s->refresh();});
     }
     public function revoke(Request $req,string $id)

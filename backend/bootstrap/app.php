@@ -19,6 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(fn($r,$e)=>$r->is('api/*') || $r->expectsJson());
         $exceptions->report(function(\Illuminate\Database\QueryException $e){\Illuminate\Support\Facades\Log::warning('Veritabanı işlemi reddedildi.',['sqlstate'=>$e->getCode(),'request_id'=>request()->attributes->get('request_id')]);return false;});
         $exceptions->render(function (\Throwable $e,\Illuminate\Http\Request $r) {
+            if($e instanceof \Illuminate\Database\QueryException) {
+                $state=$e->errorInfo[0]??$e->getCode();
+                if(str_starts_with((string)$state,'08') || in_array($state,['57P01','57P02','57P03'])) {
+                    if(!$r->is('api/*','portal-api/*') && !$r->expectsJson())return response()->view('errors.503',[],503);
+                    return response()->json(['code'=>'VERITABANI_ERISILEMIYOR','message'=>'Veritabanına geçici olarak erişilemiyor. Kısa bir süre sonra yeniden deneyin.','field_errors'=>(object)[],'request_id'=>$r->attributes->get('request_id')],503);
+                }
+            }
             if(!$r->is('api/*','portal-api/*')) return null;
             $status=500; $code='SUNUCU_HATASI'; $message='İşlem tamamlanamadı; teknik ekibe başvurun.'; $fields=[];
             if($e instanceof \App\Domain\DomainError) { $status=$e->httpStatus;$code=$e->errorCode;$message=$e->getMessage();$fields=$e->fields; }
@@ -28,6 +35,6 @@ return Application::configure(basePath: dirname(__DIR__))
             elseif($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException || $e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) { $status=404;$code='KAYIT_BULUNAMADI';$message='Kayıt bulunamadı.'; }
             elseif($e instanceof \Illuminate\Database\QueryException && in_array($e->getCode(),['23505','23514','P0001','23503','23P01'])) { $status=409;$code='DATA_CONFLICT';$message='İşlem kayıt bütünlüğü, tarih veya kontenjan koşuluyla çakıştı.'; }
             elseif($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) { $status=$e->getStatusCode();$code='ISTEK_REDDEDILDI';$message=match($status){419=>'Oturum doğrulaması sona erdi. Sayfayı yenileyip yeniden deneyin.',429=>'Çok fazla istek gönderildi. Kısa bir süre sonra yeniden deneyin.',403=>'Bu işlem için yetkiniz yok.',default=>'İstek kabul edilemedi.'}; }
-            return response()->json(['code'=>$code,'message'=>$message,'field_errors'=>$fields,'request_id'=>$r->attributes->get('request_id')],$status);
+            return response()->json(['code'=>$code,'message'=>$message,'field_errors'=>(object)$fields,'request_id'=>$r->attributes->get('request_id')],$status);
         });
     })->create();

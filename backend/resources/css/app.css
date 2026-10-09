@@ -14,3 +14,5 @@ dialog{border:1px solid var(--line);border-radius:12px;box-shadow:0 25px 80px #1
 
 .menu-backdrop{position:fixed;inset:0;border:0;background:#14213566;z-index:99}.sidebar-close{position:absolute;right:5px;top:8px;width:44px;height:44px}@media(min-width:781px){.menu-backdrop{display:none}}@media(max-width:780px){.sidebar .brand{padding-right:48px}.icon-button,.menu-toggle{min-width:40px;min-height:40px}}
 .source-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.source-row h4{grid-column:1/-1}.source-row .ref-control{min-width:0}#confirm-message{white-space:pre-line}@media(max-width:576px){.source-row{grid-template-columns:1fr}}
+/* Keep absolutely positioned accessibility labels inside the table scroller. */
+.table-responsive{position:relative}

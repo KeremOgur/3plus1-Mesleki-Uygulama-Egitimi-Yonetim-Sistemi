@@ -9,7 +9,7 @@ class DocumentController extends ResourceController
 {
     public function upload(Request $req)
     {
-        $req->validate(['file'=>'required|file|max:20480|mimes:pdf,jpg,jpeg,png,docx','target_type'=>'required|string','target_id'=>'required|uuid','classification'=>'required|in:kurum_ici,gizli,saglik,disiplin','retention_start_event'=>'required|string']);
+        $req->validate(['file'=>'bail|required|file|max:20480|mimes:pdf,jpg,jpeg,png,docx','target_type'=>'required|string','target_id'=>'required|uuid','classification'=>'required|in:kurum_ici,gizli,saglik,disiplin','retention_start_event'=>'required|string']);
         $target=Records::get($req->target_type,$req->target_id); Gate::authorize('record-view',$target);
         $candidate=\App\Models\DomainRecord::for('documents')->fill(array_merge(Records::scope($target),['target_type'=>$req->target_type,'target_id'=>$target->id,'classification'=>$req->classification]));
         Gate::authorize('record-write',$candidate);

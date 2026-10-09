@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Validator::extend('iban_tr',fn($attribute,$value)=>\App\Domain\Iban::validTurkish($value),'Geçerli bir Türkiye IBAN numarası girin.');
         \Illuminate\Support\Facades\Gate::define('record-view', fn($u,$r)=>app(\App\Domain\ScopeAccess::class)->can($u,'view',$r));
         \Illuminate\Support\Facades\Gate::define('record-write', fn($u,$r)=>app(\App\Domain\ScopeAccess::class)->can($u,'write',$r));
     }

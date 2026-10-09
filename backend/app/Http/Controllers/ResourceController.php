@@ -10,6 +10,10 @@ class ResourceController extends Controller
     public function index(Request $request,string $resource)
     {
         $spec=config("domain.$resource"); abort_unless($spec,404,'Kayıt türü bulunamadı.');
+        $filters=['cursor'=>'nullable|uuid','limit'=>'nullable|integer|min:1|max:100','q'=>'nullable|string','state'=>'nullable|string','form_code'=>'nullable|string'];
+        foreach(['institution_id','program_id','term_id','company_id','student_id','placement_id'] as $field)$filters[$field]='nullable|uuid';
+        foreach($spec['fields'] as $field=>$definition)if($definition['ref'])$filters[$field]=$definition['ref']==='users'?'nullable|integer|min:1':'nullable|uuid';
+        $request->validate($filters);
         $access=app(ScopeAccess::class); $a=$access->assignment($request->user());
         $q=Records::query($resource);
         if($request->filled('state')) $q->where('state',$request->input('state'));
@@ -88,7 +92,15 @@ class ResourceController extends Controller
     {
         $r=Records::get($resource,$id); Gate::authorize('record-view',$r); $a=app(ScopeAccess::class)->assignment($request->user());
         abort_unless($this->visible($a->role,$r),404);
-        return DB::table('record_revisions')->where('record_type',$resource)->where('record_id',$id)->orderBy('version')->get()->map(function($x)use($resource,$a){$historical=\App\Models\DomainRecord::for($resource);$historical->setRawAttributes(json_decode($x->snapshot,true),true);return ['version'=>$x->version,'recorded_at'=>$x->recorded_at,'record'=>$this->present($a->role,$historical)];});
+        return DB::table('record_revisions')->where('record_type',$resource)->where('record_id',$id)->orderBy('version')->get()->map(function($x)use($resource,$a){
+            $historical=\App\Models\DomainRecord::for($resource);$attributes=json_decode($x->snapshot,true,512,JSON_THROW_ON_ERROR);
+            // PostgreSQL to_jsonb embeds JSON columns as arrays/objects. Eloquent's
+            // raw attributes must contain JSON strings, while encrypted fields
+            // retain their stored ciphertext for normal hydration and redaction.
+            foreach(config("domain.$resource.fields") as $key=>$field)if($field['type']==='jsonb' && isset($attributes[$key]))$attributes[$key]=json_encode($attributes[$key],JSON_THROW_ON_ERROR);
+            $historical->setRawAttributes($attributes,true);
+            return ['version'=>$x->version,'recorded_at'=>$x->recorded_at,'record'=>$this->present($a->role,$historical)];
+        });
     }
     public function transaction(Request $request,callable $fn)
     {
